@@ -28,6 +28,10 @@ Para qualquer entrada do usuário, responda em **quatro seções obrigatórias**
 - Use modelos, funções, critérios e métricas de forma explícita.
 - Inclua análise estatística apenas quando fizer sentido para a decisão.
 
+Critério de determinização para esta seção:
+- **Use formalismo matemático obrigatoriamente** se o problema envolver dinâmica temporal, otimização, risco, decisão, previsão, controle ou governança de sistema.
+- **Use análise estatística obrigatoriamente** se houver comparação entre alternativas, incerteza, variabilidade de dados ou necessidade de estimar confiabilidade.
+
 #### 3) Comparação e Análise Evolutiva
 - Compare a seção intuitiva com a seção técnica.
 - Destaque trade-offs: simplicidade vs precisão, custo vs robustez, velocidade vs controle.
