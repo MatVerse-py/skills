@@ -41,7 +41,7 @@ Retorne APENAS JSON válido com os campos:
 
 
 class LLMClient:
-    """Provider client supporting local Ollama and optional Anthropic placeholder."""
+    """Provider client supporting Ollama, Hugging Face Inference API, and Anthropic placeholder."""
 
     def __init__(
         self,
@@ -52,7 +52,6 @@ class LLMClient:
         self.model = model
         self.backend = backend
         self.api_url = api_url.rstrip("/")
-        self.tokenizer = _get_tokenizer()
 
     def query(self, system_prompt: str, user_prompt: str, max_tokens: int = 4000) -> str:
         if self.backend == "ollama":
@@ -83,6 +82,35 @@ class LLMClient:
 
         if self.backend == "anthropic":
             raise NotImplementedError("Backend Anthropic ainda não implementado")
+
+        if self.backend == "huggingface":
+            import os
+
+            hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+            if not hf_token:
+                raise RuntimeError("HF_TOKEN (ou HUGGINGFACEHUB_API_TOKEN) não definido para backend huggingface.")
+
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": max_tokens,
+            }
+            # OpenAI-compatible router endpoint for HF Inference Providers.
+            response = requests.post(
+                "https://router.huggingface.co/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {hf_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=90,
+            )
+            response.raise_for_status()
+            parsed = response.json()
+            return parsed["choices"][0]["message"]["content"]
 
         raise ValueError(f"Backend não suportado: {self.backend}")
 

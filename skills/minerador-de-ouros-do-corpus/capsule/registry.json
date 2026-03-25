@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "artifacts": [
+    {
+      "name": "MNB Preprint v1.0",
+      "sha256": "daf023ac1456aba2bb4a012e273bd604e568fe403c61f3b8cf9d96d14ad5f160",
+      "size_bytes": 1245678,
+      "category": "paper",
+      "status": "active"
+    },
+    {
+      "name": "Ω-Gate Specification",
+      "sha256": "3e2e1b5c6d7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "size_bytes": 456789,
+      "category": "spec",
+      "status": "active"
+    },
+    {
+      "name": "Monte Carlo Runner v2",
+      "sha256": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+      "size_bytes": 98765,
+      "category": "code",
+      "status": "active"
+    },
+    {
+      "name": "SymbiOS Notebook Image",
+      "sha256": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
+      "size_bytes": 2045678,
+      "category": "asset",
+      "status": "active"
+    },
+    {
+      "name": "Ledger Replay Log",
+      "sha256": "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
+      "size_bytes": 123456,
+      "category": "log",
+      "status": "archived"
+    }
+  ]
+}

@@ -53,7 +53,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--weights", type=Path, default=None, help="JSON file with custom component weights")
     parser.add_argument("--min-length", type=int, default=120, help="Minimum chars to keep a document")
     parser.add_argument("--oracle", action="store_true", help="Ativa avaliação por LLM oracle")
-    parser.add_argument("--oracle-backend", choices=["ollama", "anthropic"], default="ollama", help="Backend do LLM")
+    parser.add_argument(
+        "--oracle-backend",
+        choices=["ollama", "huggingface", "anthropic"],
+        default="ollama",
+        help="Backend do LLM",
+    )
     parser.add_argument("--oracle-api-url", type=str, default="http://localhost:11434", help="URL da API do backend")
     parser.add_argument("--oracle-model", type=str, default="llama3", help="Modelo LLM")
     parser.add_argument("--oracle-cost-limit", type=int, default=4000, help="Máximo de tokens por documento")
@@ -300,6 +305,7 @@ def main() -> None:
     ranking = []
     entity_map: Dict[str, Dict[str, List[str]]] = {}
     all_claims = []
+    doc_by_id = {d.doc_id: d for d in docs}
 
     for doc, tf in zip(docs, tfs):
         components = component_scores(doc, tf, global_df, len(docs), avg_tf)
@@ -339,7 +345,7 @@ def main() -> None:
         scan_count = min(args.top, len(ranking))
 
         for row in ranking[:scan_count]:
-            doc = next(d for d in docs if d.doc_id == row["doc_id"])
+            doc = doc_by_id[row["doc_id"]]
             judgment = evaluate_document(
                 content=doc.text,
                 model=args.oracle_model,
@@ -376,6 +382,7 @@ def main() -> None:
         scores = [r["score"] for r in ranking]
 
     top_n = ranking[: args.top]
+    tier_counts = Counter(r["tier"] for r in ranking)
 
     report = {
         "summary": {
@@ -383,6 +390,7 @@ def main() -> None:
             "weights": weights,
             "adaptive_thresholds": {"p35": p35, "p60": p60, "p85": p85},
             "score_mean": mean(scores),
+            "tier_counts": dict(tier_counts),
         },
         "ranking": top_n,
         "entity_map": entity_map,
