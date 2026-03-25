@@ -38,6 +38,11 @@ Para refinar a triagem com juízo semântico de LLM:
 
 O relatório inclui `oracle_evaluations` com scores por dimensão, justificativas e claims sem evidência.
 
+Dependências opcionais do oracle:
+
+- `pip install -r requirements-oracle.txt`
+- Para Ollama local: iniciar servidor (`ollama serve`) e baixar modelo (`ollama pull llama3`).
+
 ## Interpretação operacional
 
 - `ranking`: prioridade geral por valor esperado.

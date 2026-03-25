@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LLM oracle evaluator with cache, token-aware truncation, and local Ollama support."""
+"""LLM oracle evaluator with cache, token-aware truncation, and Ollama support."""
 
 from __future__ import annotations
 
@@ -7,13 +7,16 @@ import hashlib
 import json
 import logging
 import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional
+
+try:
+    import requests  # type: ignore
+except Exception:  # pragma: no cover
+    requests = None  # type: ignore
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
-from os import getenv
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
 
 @dataclass
 class OracleJudgment:
@@ -38,7 +41,7 @@ Retorne APENAS JSON válido com os campos:
 
 
 class LLMClient:
-    """Provider client supporting local Ollama and optional Anthropic."""
+    """Provider client supporting local Ollama and optional Anthropic placeholder."""
 
     def __init__(
         self,
@@ -49,6 +52,7 @@ class LLMClient:
         self.model = model
         self.backend = backend
         self.api_url = api_url.rstrip("/")
+        self.tokenizer = _get_tokenizer()
 
     def query(self, system_prompt: str, user_prompt: str, max_tokens: int = 4000) -> str:
         if self.backend == "ollama":
@@ -61,41 +65,24 @@ class LLMClient:
                 "stream": False,
                 "options": {"num_predict": max_tokens},
             }
-            data = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                f"{self.api_url}/api/chat",
-                data=data,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=90) as response:
-                parsed = json.loads(response.read().decode("utf-8"))
+            if requests is not None:
+                response = requests.post(f"{self.api_url}/api/chat", json=payload, timeout=90)
+                response.raise_for_status()
+                parsed = response.json()
+            else:
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{self.api_url}/api/chat",
+                    data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=90) as response:
+                    parsed = json.loads(response.read().decode("utf-8"))
             return parsed["message"]["content"]
 
         if self.backend == "anthropic":
-            api_key = getenv("ANTHROPIC_API_KEY")
-            if not api_key:
-                raise RuntimeError("ANTHROPIC_API_KEY não definido para backend anthropic.")
-            payload = {
-                "model": self.model,
-                "max_tokens": max_tokens,
-                "system": system_prompt,
-                "messages": [{"role": "user", "content": user_prompt}],
-            }
-            data = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                "https://api.anthropic.com/v1/messages",
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=90) as response:
-                parsed = json.loads(response.read().decode("utf-8"))
-            return parsed["content"][0]["text"]
+            raise NotImplementedError("Backend Anthropic ainda não implementado")
 
         raise ValueError(f"Backend não suportado: {self.backend}")
 
@@ -144,11 +131,10 @@ def _tokenize_len(text: str, tokenizer) -> int:
     return len(tokenizer.encode(text))
 
 
-def truncate_by_tokens(text: str, max_tokens: int, tokenizer) -> Tuple[str, int]:
+def truncate_by_tokens(text: str, max_tokens: int, tokenizer) -> str:
     """Truncate preserving sentence/paragraph boundaries."""
-    original_tokens = _tokenize_len(text, tokenizer)
-    if original_tokens <= max_tokens:
-        return text, original_tokens
+    if _tokenize_len(text, tokenizer) <= max_tokens:
+        return text
 
     if tokenizer is None:
         approx_chars = max_tokens * 4
@@ -162,7 +148,7 @@ def truncate_by_tokens(text: str, max_tokens: int, tokenizer) -> Tuple[str, int]
     cut = max(last_period, last_newline)
     if cut > 0:
         truncated = truncated[: cut + 1]
-    return truncated + "\n... [truncado]", original_tokens
+    return truncated + "\n... [truncado]"
 
 
 def evaluate_document(
@@ -189,16 +175,19 @@ def evaluate_document(
             pass
 
     tokenizer = _get_tokenizer()
-    truncated, original_tokens = truncate_by_tokens(content, max(300, cost_limit_tokens), tokenizer)
-    prompt = (
-        f"Documento (tokens_originais_aprox={original_tokens}, possivelmente truncado):\n"
-        f"{truncated}\n\nAvalie conforme as instruções do sistema."
-    )
+    truncated = truncate_by_tokens(content, max(300, cost_limit_tokens), tokenizer)
+    prompt = f"Documento:\n{truncated}\n\nAvalie conforme as instruções do sistema."
 
     client = LLMClient(model=model, backend=backend, api_url=api_url)
     try:
         response = client.query(ORACLE_SYSTEM_PROMPT, prompt, max_tokens=1200)
-    except (urllib.error.URLError, TimeoutError, RuntimeError, ValueError) as exc:
+    except (urllib.error.URLError, TimeoutError, RuntimeError, ValueError, NotImplementedError) as exc:
+        logging.warning("Falha no oracle (%s): %s", backend, exc)
+        return None
+    except Exception as exc:
+        if requests is not None and isinstance(exc, requests.RequestException):
+            logging.warning("Falha no oracle (%s): %s", backend, exc)
+            return None
         logging.warning("Falha no oracle (%s): %s", backend, exc)
         return None
     judgment = parse_llm_response(response)
