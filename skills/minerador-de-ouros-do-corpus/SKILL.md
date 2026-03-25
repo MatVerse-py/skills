@@ -20,4 +20,3 @@ Use this skill when you need to triage a large corpus and quickly identify the h
 - For oracle mode, install optional deps with `pip install -r requirements-oracle.txt`.
 - For local zero-cost inference, run `ollama serve` and pre-pull model with `ollama pull llama3`.
 - If Ollama is not available, use `--oracle-backend huggingface` and export `HF_TOKEN`.
-- For full MatVerse stack tests, use the bundled `docker-compose.yml` + `scripts/validate.sh`.
