@@ -1,0 +1,8 @@
+FROM python:3.10-slim
+WORKDIR /app
+COPY services/capsule_sidecar/requirements.txt .
+RUN pip install -r requirements.txt
+COPY services/capsule_sidecar/ .
+COPY capsule/ /app/capsule/
+EXPOSE 5000
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
