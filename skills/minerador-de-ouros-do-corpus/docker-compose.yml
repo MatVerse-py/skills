@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  capsule:
+    build:
+      context: .
+      dockerfile: Dockerfile.capsule
+    container_name: matverse-capsule
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./capsule:/app/capsule
+      - ./artifacts:/app/artifacts
+    environment:
+      - FLASK_APP=services/capsule_sidecar/app.py
+      - FLASK_ENV=production
+    networks:
+      - matverse-net
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: matverse-gateway
+    ports:
+      - "8090:8090"
+    depends_on:
+      - bunker
+    environment:
+      - MATVERSE_BUNKER_URL=http://bunker:8080
+    networks:
+      - matverse-net
+    restart: unless-stopped
+
+  bunker:
+    build:
+      context: .
+      dockerfile: Dockerfile.bunker
+    container_name: matverse-bunker
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./artifacts:/app/artifacts
+    environment:
+      - MATVERSE_LEDGER_PATH=/app/artifacts/ledger/system_ledger.jsonl
+    networks:
+      - matverse-net
+    restart: unless-stopped
+
+networks:
+  matverse-net:
+    driver: bridge
