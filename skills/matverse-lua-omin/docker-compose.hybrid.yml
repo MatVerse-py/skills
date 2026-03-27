@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  openresty:
+    image: openresty/openresty:alpine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./openresty/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ./openresty/lua:/usr/local/openresty/nginx/lua:ro
+      - ./data:/data
+      - /run/matverse:/run/matverse
+    depends_on:
+      - autoheal
+    restart: unless-stopped
+
+  autoheal:
+    image: python:3.11-slim
+    command: python /app/autoheal.py
+    volumes:
+      - ./sidecar:/app:ro
+      - ./data:/data
+      - /run/matverse:/run/matverse
+    environment:
+      # Zero-ENV: aqui pode ser vazio; use docker secrets/KMS em produção.
+      VAULT_SOURCES: "telegram,huggingface,blockchain"
+      SCAN_INTERVAL: "60"
+      ROTATION_INTERVAL: "300"
+      KILL_SWITCH_THRESHOLD: "3"
+    restart: unless-stopped
+
+  verifier:
+    image: python:3.11-slim
+    command: python /app/offline_verify.py --help
+    volumes:
+      - ./sidecar:/app:ro
+      - ./data:/data
+    profiles: ["tools"]
+
+volumes: {}
